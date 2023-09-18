@@ -34,9 +34,10 @@ static boolean vid_initialized = false;
 static int grabMouse;
 
 // Vulkan Setup
-
-static VkInstance		vulkanInstance;
-static VkPhysicalDevice	vulkanDevice;
+static VkInstance			vulkan_instance;
+static VkPhysicalDevice		vulkan_device;
+static VkApplicationInfo	vulkan_application_info;
+static VkInstanceCreateInfo vulkan_instance_creation;
 
 /*
 ============================================================================
@@ -159,30 +160,53 @@ void I_InitGraphics(void)
 	}
 
 	// Create the Vulkan instance
-	VkApplicationInfo appInfo;
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "vkHexen";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 1, 0);
-	appInfo.pEngineName = "vkHexen";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_1;
+	ST_Message("Vulkan: Creating Instance");
+	vulkan_application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	vulkan_application_info.pNext = NULL;
+	char app_name[VK_MAX_EXTENSION_NAME_SIZE];
+	strcpy(app_name, "vkHexen");
+	vulkan_application_info.pApplicationName = app_name;
+	vulkan_application_info.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+	char app_engine_name[VK_MAX_EXTENSION_NAME_SIZE];
+	strcpy(app_engine_name, "vkHexen");
+	vulkan_application_info.pEngineName = app_engine_name;
+	vulkan_application_info.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+	vulkan_application_info.apiVersion = VK_API_VERSION_1_0;
 
-	// Define Vulkan instance create info
-	VkInstanceCreateInfo createInfo;
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
+	vulkan_instance_creation.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	vulkan_instance_creation.pNext = NULL;
+	vulkan_instance_creation.flags = 0;
+	vulkan_instance_creation.pApplicationInfo = &vulkan_application_info;
+	vulkan_instance_creation.enabledLayerCount = 1;
 
-	// Create the Vulkan instance
-	if (vkCreateInstance(&createInfo, NULL, &vulkanInstance) != VK_SUCCESS) {
+	char pp_inst_layers[1]
+		[VK_MAX_EXTENSION_NAME_SIZE];
+	strcpy(pp_inst_layers[0], "VK_LAYER_KHRONOS_validation");
+	char* pp_inst_layer_names[1];
+	for (uint32_t i = 0; i < 1; i++) {
+		pp_inst_layer_names[i] =
+			pp_inst_layers[i];
+	}
+	vulkan_instance_creation.ppEnabledLayerNames =
+		(const char* const*)pp_inst_layer_names;
+	uint32_t inst_ext_count = 0;
+	vulkan_instance_creation.enabledExtensionCount = inst_ext_count;
+	vulkan_instance_creation.ppEnabledExtensionNames = 0;
+
+	if (vkCreateInstance(&vulkan_instance_creation, NULL, &vulkan_instance) != VK_SUCCESS) {
+		// Handle device creation error
 		I_Error(stderr, "Failed to create Vulkan instance\n");
 		exit(EXIT_FAILURE);
+	}
+	else {
+		ST_Message("\nVulkan: Created Instance");
 	}
 
 	// Create the Vulkan device
 	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(vulkanInstance, &deviceCount, NULL);
+	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, NULL);
 	VkPhysicalDevice* physicalDevices = malloc(deviceCount * sizeof(VkPhysicalDevice));
-	vkEnumeratePhysicalDevices(vulkanInstance, &deviceCount, physicalDevices);
+	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, physicalDevices);
 
 	// Select a physical device (you might want to implement device selection logic here)
 	VkPhysicalDevice selectedDevice = physicalDevices[0];
@@ -194,7 +218,7 @@ void I_InitGraphics(void)
 	deviceCreateInfo.pEnabledFeatures = NULL;   // No special features needed
 
 	// Create the Vulkan device
-	if (vkCreateDevice(selectedDevice, &deviceCreateInfo, NULL, &vulkanDevice) != VK_SUCCESS) {
+	if (vkCreateDevice(selectedDevice, &deviceCreateInfo, NULL, &vulkan_device) != VK_SUCCESS) {
 		// Handle device creation error
 		I_Error(stderr, "Failed to create Vulkan device\n");
 		exit(EXIT_FAILURE);
@@ -202,7 +226,7 @@ void I_InitGraphics(void)
 
 	// Create a Vulkan surface from the SDL window
 	VkSurfaceKHR surface;
-	if (!SDL_Vulkan_CreateSurface(sdl_window, vulkanInstance, &surface))
+	if (!SDL_Vulkan_CreateSurface(sdl_window, vulkan_instance, &surface))
 	{
 		I_Error("Couldn't create Vulkan surface from SDL2: %s\n", SDL_GetError());
 	}
