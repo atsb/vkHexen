@@ -149,6 +149,9 @@ void I_InitGraphics(void)
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
 		I_Error("Couldn't init video: %s", SDL_GetError());
 	}
+	else {
+		ST_Message("SDL2: Initialising SubSystem\n");
+	}
 
 	// Needs some work to get screenHeight and screenWidth working - S.A.
 	sdl_window = SDL_CreateWindow(text, SDL_WINDOWPOS_CENTERED,
@@ -156,7 +159,10 @@ void I_InitGraphics(void)
 
 	if (sdl_window == NULL)
 	{
-		I_Error("Couldn't initialize SDL2: %s\n", SDL_GetError());
+		I_Error("Could not initialise SDL2: %s\n", SDL_GetError());
+	}
+	else {
+		ST_Message("SDL2: Initialised\n");
 	}
 
 	// Create the Vulkan instance
