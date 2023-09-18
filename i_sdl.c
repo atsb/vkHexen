@@ -160,7 +160,7 @@ void I_InitGraphics(void)
 	}
 
 	// Create the Vulkan instance
-	ST_Message("Vulkan: Creating Instance");
+	ST_Message("Vulkan: Creating Instance\n");
 	vulkan_application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	vulkan_application_info.pNext = NULL;
 	char app_name[VK_MAX_EXTENSION_NAME_SIZE];
@@ -199,10 +199,11 @@ void I_InitGraphics(void)
 		exit(EXIT_FAILURE);
 	}
 	else {
-		ST_Message("\nVulkan: Created Instance");
+		ST_Message("Vulkan: Created Instance");
 	}
 
 	// Create the Vulkan device
+	ST_Message("Vulkan: Creating Device\n");
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, NULL);
 	VkPhysicalDevice* physicalDevices = malloc(deviceCount * sizeof(VkPhysicalDevice));
@@ -223,12 +224,15 @@ void I_InitGraphics(void)
 		I_Error(stderr, "Failed to create Vulkan device\n");
 		exit(EXIT_FAILURE);
 	}
+	else {
+		ST_Message("Vulkan: Created Device");
+	}
 
 	// Create a Vulkan surface from the SDL window
 	VkSurfaceKHR surface;
 	if (!SDL_Vulkan_CreateSurface(sdl_window, vulkan_instance, &surface))
 	{
-		I_Error("Couldn't create Vulkan surface from SDL2: %s\n", SDL_GetError());
+		I_Error("Vulkan: Could not create Vulkan Surface from SDL2: %s\n", SDL_GetError());
 	}
 
 	// Initialize other Vulkan-related objects here
