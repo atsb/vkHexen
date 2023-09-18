@@ -90,7 +90,8 @@ void I_SetPalette(byte *palette)
 		colormap[i].b = gammatable[usegamma][*palette++];
 	}
 	
-	SDL_SetPaletteColors(screen_surface->format->palette, colormap, 0, 256);
+	// TODO: VULKANISE!
+	//SDL_SetPaletteColors(screen_surface->format->palette, colormap, 0, 256);
 }
 
 /*
@@ -125,9 +126,10 @@ void I_Update (void)
 	 */
 	SDL_BlitSurface(screen_surface, &blit_rect, buffer_surface, &blit_rect);
 
+	// TODO: VULKANISE!
 	/* Update SDL texture with the contents of our 32-bit RGBA buffer */
-	SDL_UpdateTexture (render_texture, NULL, buffer_surface->pixels,
-		buffer_surface->pitch);
+	//SDL_UpdateTexture (render_texture, NULL, buffer_surface->pixels,
+		//buffer_surface->pitch);
 
 	SDL_RenderClear (sdl_renderer);
 	SDL_RenderCopy (sdl_renderer, render_texture, NULL, NULL);
@@ -264,10 +266,6 @@ void I_InitGraphics(void)
 		ST_Message("Vulkan: Created Device\n");
 	}
 
-	// We like to be clean
-	free(physicalDevices);
-	free(queueFamilies);
-
 	// Create a Vulkan surface from the SDL window
 	VkSurfaceKHR surface;
 	if (!SDL_Vulkan_CreateSurface(sdl_window, vulkan_instance, &surface))
@@ -289,9 +287,14 @@ void I_InitGraphics(void)
 		SDL_SetRelativeMouseMode(SDL_TRUE);
 	}
 
+	// We like to be clean
+	free(physicalDevices);
+	free(queueFamilies);
+
 	SDL_ShowCursor(SDL_DISABLE);
 
-	screen = (byte*)screen_surface->pixels;
+	// TODO: VULKANISE!
+	//screen = (byte*)screen_surface->pixels;
 
 	I_SetPalette((byte*)W_CacheLumpName("PLAYPAL", PU_CACHE));
 }
