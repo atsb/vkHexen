@@ -34,10 +34,13 @@ static boolean vid_initialized = false;
 static int grabMouse;
 
 // Vulkan Setup
-static VkInstance			vulkan_instance;
-static VkPhysicalDevice		vulkan_device;
-static VkApplicationInfo	vulkan_application_info;
-static VkInstanceCreateInfo vulkan_instance_creation;
+static VkInstance				vulkan_instance;
+static VkPhysicalDevice			vulkan_device;
+static VkApplicationInfo		vulkan_application_info;
+static VkInstanceCreateInfo		vulkan_instance_creation;
+static VkDeviceCreateInfo		vulkan_device_info;
+static VkDevice					vulkan_logical_device;
+static VkDeviceQueueCreateInfo  vulkan_queue_creation_info;
 
 /*
 ============================================================================
@@ -183,28 +186,18 @@ void I_InitGraphics(void)
 	vulkan_instance_creation.pNext = NULL;
 	vulkan_instance_creation.flags = 0;
 	vulkan_instance_creation.pApplicationInfo = &vulkan_application_info;
-	vulkan_instance_creation.enabledLayerCount = 1;
+	vulkan_instance_creation.enabledLayerCount = 0;
+	vulkan_instance_creation.ppEnabledLayerNames = NULL;
 
-	char pp_inst_layers[1]
-		[VK_MAX_EXTENSION_NAME_SIZE];
-	strcpy(pp_inst_layers[0], "VK_LAYER_KHRONOS_validation");
-	char* pp_inst_layer_names[1];
-	for (uint32_t i = 0; i < 1; i++) {
-		pp_inst_layer_names[i] =
-			pp_inst_layers[i];
-	}
-	vulkan_instance_creation.ppEnabledLayerNames =
-		(const char* const*)pp_inst_layer_names;
-	uint32_t inst_ext_count = 0;
-	vulkan_instance_creation.enabledExtensionCount = inst_ext_count;
-	vulkan_instance_creation.ppEnabledExtensionNames = 0;
+	const char* extensionNames[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+	vulkan_instance_creation.enabledExtensionCount = sizeof(extensionNames) / sizeof(extensionNames[0]);
+	vulkan_instance_creation.ppEnabledExtensionNames = extensionNames;
 
 	if (vkCreateInstance(&vulkan_instance_creation, NULL, &vulkan_instance) != VK_SUCCESS) {
 		I_Error(stderr, "Failed to create Vulkan instance\n");
 		exit(EXIT_FAILURE);
 	}
-
-	if (vkCreateInstance(&vulkan_instance_creation, NULL, &vulkan_instance) == VK_SUCCESS) {
+	else {
 		ST_Message("Vulkan: Created Instance\n");
 	}
 
@@ -212,30 +205,77 @@ void I_InitGraphics(void)
 	ST_Message("Vulkan: Creating Device\n");
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, NULL);
+
+	if (deviceCount == 0) {
+		fprintf(stderr, "Vulkan: Compatible GPU not found\n");
+		return EXIT_FAILURE;
+	}
+	else {
+		ST_Message("Vulkan: Compatible GPU found\n");
+	}
+
 	VkPhysicalDevice* physicalDevices = malloc(deviceCount * sizeof(VkPhysicalDevice));
 	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, physicalDevices);
 
 	VkPhysicalDevice selectedDevice = physicalDevices[0];
 
-	// Set up device create info
-	VkDeviceCreateInfo deviceCreateInfo;
-	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.queueCreateInfoCount = 0;
-	deviceCreateInfo.pEnabledFeatures = NULL;
+	// Query queue family properties
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(selectedDevice, &queueFamilyCount, NULL);
 
-	if (vkCreateDevice(selectedDevice, &deviceCreateInfo, NULL, &vulkan_device) != VK_SUCCESS) {
-		I_Error(stderr, "Failed to create Vulkan device\n");
-		exit(EXIT_FAILURE);
+	VkQueueFamilyProperties* queueFamilies = malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
+	vkGetPhysicalDeviceQueueFamilyProperties(selectedDevice, &queueFamilyCount, queueFamilies);
+
+	uint32_t queueFamilyIndex = UINT32_MAX;
+	for (uint32_t i = 0; i < queueFamilyCount; i++) {
+		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			queueFamilyIndex = i;
+			break;
+		}
+	}
+
+	if (queueFamilyIndex == UINT32_MAX) {
+		fprintf(stderr, "Vulkan: No suitable queue family found\n");
+		return EXIT_FAILURE;
+	}
+	else {
+		ST_Message("Vulkan: Queue Found\n");
+	}
+
+	vulkan_queue_creation_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	vulkan_queue_creation_info.queueFamilyIndex = queueFamilyIndex;
+	vulkan_queue_creation_info.queueCount = 1;
+
+	float queuePriorities[] = { 1.0f };
+
+	vulkan_queue_creation_info.pQueuePriorities = queuePriorities;
+
+	vulkan_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	vulkan_device_info.pQueueCreateInfos = &vulkan_queue_creation_info;
+	vulkan_device_info.queueCreateInfoCount = 1;
+
+	VkDevice vulkan_device;
+
+	if (vkCreateDevice(selectedDevice, &vulkan_device_info, NULL, &vulkan_device) != VK_SUCCESS) {
+		fprintf(stderr, "Vulkan: Failed to create Vulkan device\n");
+		return EXIT_FAILURE;
 	}
 	else {
 		ST_Message("Vulkan: Created Device\n");
 	}
+
+	// We like to be clean
+	free(physicalDevices);
+	free(queueFamilies);
 
 	// Create a Vulkan surface from the SDL window
 	VkSurfaceKHR surface;
 	if (!SDL_Vulkan_CreateSurface(sdl_window, vulkan_instance, &surface))
 	{
 		I_Error("Vulkan: Could not create Vulkan Surface from SDL2: %s\n", SDL_GetError());
+	}
+	else {
+		ST_Message("Vulkan: Surface created\n");
 	}
 
 	// Initialize other Vulkan-related objects here
