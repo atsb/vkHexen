@@ -194,12 +194,12 @@ void I_InitGraphics(void)
 	vulkan_instance_creation.ppEnabledExtensionNames = 0;
 
 	if (vkCreateInstance(&vulkan_instance_creation, NULL, &vulkan_instance) != VK_SUCCESS) {
-		// Handle device creation error
 		I_Error(stderr, "Failed to create Vulkan instance\n");
 		exit(EXIT_FAILURE);
 	}
-	else {
-		ST_Message("Vulkan: Created Instance");
+
+	if (vkCreateInstance(&vulkan_instance_creation, NULL, &vulkan_instance) == VK_SUCCESS) {
+		ST_Message("Vulkan: Created Instance\n");
 	}
 
 	// Create the Vulkan device
@@ -209,23 +209,20 @@ void I_InitGraphics(void)
 	VkPhysicalDevice* physicalDevices = malloc(deviceCount * sizeof(VkPhysicalDevice));
 	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, physicalDevices);
 
-	// Select a physical device (you might want to implement device selection logic here)
 	VkPhysicalDevice selectedDevice = physicalDevices[0];
 
-	// Set up device create info (minimal configuration)
+	// Set up device create info
 	VkDeviceCreateInfo deviceCreateInfo;
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.queueCreateInfoCount = 0; // No queues needed
-	deviceCreateInfo.pEnabledFeatures = NULL;   // No special features needed
+	deviceCreateInfo.queueCreateInfoCount = 0;
+	deviceCreateInfo.pEnabledFeatures = NULL;
 
-	// Create the Vulkan device
 	if (vkCreateDevice(selectedDevice, &deviceCreateInfo, NULL, &vulkan_device) != VK_SUCCESS) {
-		// Handle device creation error
 		I_Error(stderr, "Failed to create Vulkan device\n");
 		exit(EXIT_FAILURE);
 	}
 	else {
-		ST_Message("Vulkan: Created Device");
+		ST_Message("Vulkan: Created Device\n");
 	}
 
 	// Create a Vulkan surface from the SDL window
